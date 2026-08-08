@@ -4,5 +4,7 @@ __pycache__/
 # 运行时数据（不入库）
 gold_cache.json
 gold_debug.log
+_server_stdout.log
+_server_stderr.log
 # 本地备份
 *.bak

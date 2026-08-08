@@ -49,6 +49,7 @@ import re         # 正则表达式：从 HTML 页面文本中提取价格
 import socket     # 设置全局网络超时
 import ssl        # 创建不校验证书的 SSL 上下文（部分免费接口证书不完整）
 import traceback  # 输出完整异常堆栈到日志
+import threading  # 浏览器在新线程中打开，避免阻塞 HTTP 服务循环
 import webbrowser # 服务器启动后自动打开浏览器
 from pathlib import Path  # 跨平台路径对象
 
@@ -799,6 +800,14 @@ class GoldHandler(BaseHTTPRequestHandler):
         log_debug(fmt % args)
 
 
+def _safe_open_browser(url: str):
+    """尝试用默认浏览器打开页面；任何失败都只记日志，不影响服务器运行。"""
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        log_debug(f"打开浏览器失败：{repr(e)}")
+
+
 def main():
     """启动本地 HTTP 服务器并自动打开浏览器。
 
@@ -813,10 +822,10 @@ def main():
     print("停止运行：在此窗口按 Ctrl + C")
     print("如果仍失败，把 gold_debug.log 最后 20 行发给我")
     print("=" * 64)
-    try:
-        webbrowser.open(url)  # 自动打开默认浏览器，失败则忽略，可手动访问
-    except Exception:
-        pass
+    # 浏览器在新线程中打开：即使默认浏览器启动缓慢或异常，
+    # 也不会阻塞 serve_forever，避免服务“假死”后端口被占。
+    threading.Thread(target=_safe_open_browser, args=(url,), daemon=True).start()
+    log_debug(f"服务器已启动：{url}")
     try:
         server.serve_forever()  # 一直监听，直到收到 Ctrl+C
     except KeyboardInterrupt:
