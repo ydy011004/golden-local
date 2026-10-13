@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-黄金价格实时看板 V5.1 - 折线图坐标轴与鼠标提示版
+黄金价格实时看板 V5.2 - 界面增强与快捷工具版
 运行：py gold_local_server_v5_1_fixed_cache.py
 打开：http://127.0.0.1:8000
 
@@ -12,9 +12,10 @@
   4) 上海黄金交易所 Au99.99 延时价格（元/克）；
   5) 内外价差及刷新走势折线图（带坐标轴、网格线和鼠标悬浮提示）。
 
-【V5.1 变化】
+【V5.2 变化】
 - 固定缓存目录：缓存和日志固定存放在 D:\\桌面\\golden-local，不再随运行目录变化。
 - 走势图增加坐标轴刻度、网格线、图例和鼠标悬浮提示。
+- 网页增加主题切换、持仓估值、刷新倒计时、暂停刷新、历史导出与快捷键。
 
 【V4 修复】
 1) Stooq 的 h 参数返回“无表头 CSV”，旧版用 DictReader 会把数据行误当表头。
@@ -116,160 +117,49 @@ HTML = r'''<!DOCTYPE html>
 :root{--bg:#0f172a;--card:rgba(255,255,255,.08);--line:rgba(255,255,255,.14);--text:#f8fafc;--muted:#94a3b8;--gold:#fbbf24;--blue:#38bdf8;--green:#22c55e;--red:#ef4444;--shadow:0 24px 80px rgba(0,0,0,.26)}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:radial-gradient(circle at top left,rgba(251,191,36,.18),transparent 36%),radial-gradient(circle at bottom right,rgba(56,189,248,.13),transparent 34%),var(--bg)}
 .container{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:36px 0 42px}.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:22px;margin-bottom:24px}.badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;color:#fde68a;background:rgba(255,255,255,.08);font-size:13px;margin-bottom:14px}.dot{width:8px;height:8px;border-radius:999px;background:var(--gold);box-shadow:0 0 18px var(--gold);animation:pulse 1.2s infinite ease-in-out;display:inline-block;margin-right:6px}@keyframes pulse{0%,100%{opacity:.55;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}h1{margin:0;font-size:clamp(30px,5vw,58px);line-height:1.05;letter-spacing:-.06em}.desc{max-width:840px;margin:14px 0 0;color:var(--muted);line-height:1.75;font-size:15px}.controls{min-width:280px;display:grid;gap:12px}button{border:0;outline:0;border-radius:18px;padding:15px 18px;background:linear-gradient(135deg,#b7791f,#fbbf24);color:#111827;font-weight:900;cursor:pointer;box-shadow:0 14px 36px rgba(251,191,36,.23)}button:disabled{opacity:.62;cursor:not-allowed}.status{padding:13px 15px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--muted);font-size:13px;line-height:1.55;white-space:pre-wrap}.history-list{min-height:150px;max-height:240px;overflow:auto;border-radius:18px;border:1px solid rgba(255,255,255,.12);padding:12px;background:rgba(255,255,255,.04);font-size:13px;line-height:1.6;color:#e2e8f0}.history-list table{width:100%;border-collapse:collapse}.history-list th,.history-list td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}.history-list th{color:#e2e8f0;background:rgba(255,255,255,.06)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}.card,.panel,.errorbox{border:1px solid var(--line);border-radius:28px;background:var(--card);box-shadow:var(--shadow);backdrop-filter:blur(18px)}.card{min-height:215px;padding:24px;position:relative;overflow:hidden}.card:after{content:"";position:absolute;width:160px;height:160px;right:-45px;bottom:-62px;border-radius:50%;background:rgba(251,191,36,.13)}.card.blue:after{background:rgba(56,189,248,.13)}.card.green:after{background:rgba(34,197,94,.13)}.label{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:15px;margin-bottom:22px}.pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#e2e8f0;font-size:12px;white-space:nowrap}.price{position:relative;z-index:1;font-size:clamp(36px,5vw,54px);font-weight:950;letter-spacing:-.06em;line-height:1}.unit{margin-left:6px;color:var(--muted);font-size:16px;font-weight:800;letter-spacing:0}.sub{position:relative;z-index:1;margin-top:18px;color:var(--muted);font-size:13px;line-height:1.65}.delta{display:inline-flex;margin-top:14px;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:900;position:relative;z-index:1}.up{color:#bbf7d0;background:rgba(34,197,94,.15)}.down{color:#fecaca;background:rgba(239,68,68,.15)}.panel{padding:24px;display:grid;grid-template-columns:1.25fr .75fr;gap:18px}h2{margin:0 0 14px;font-size:20px}canvas{width:100%;height:290px;display:block;border-radius:22px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);cursor:crosshair}.chart-wrap{position:relative}.chart-tooltip{position:absolute;display:none;z-index:20;min-width:190px;padding:10px 12px;border-radius:14px;background:rgba(15,23,42,.94);border:1px solid rgba(255,255,255,.18);box-shadow:0 16px 36px rgba(0,0,0,.35);color:#e2e8f0;font-size:12px;line-height:1.65;pointer-events:none;white-space:nowrap}.chart-tooltip b{color:#f8fafc}.chart-tooltip .gold{color:#fbbf24}.chart-tooltip .blue{color:#38bdf8}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}th,td{padding:12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;color:var(--muted)}th{color:#e2e8f0;background:rgba(255,255,255,.07)}.tips{display:grid;gap:12px}.tip{padding:14px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:var(--muted);line-height:1.65;font-size:13px}.tip strong{display:block;color:var(--text);margin-bottom:5px}.errorbox{display:none;margin-bottom:16px;padding:16px;color:#fecaca;font-size:13px;line-height:1.7;white-space:pre-wrap}.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px;line-height:1.7}@media(max-width:900px){.hero,.panel{grid-template-columns:1fr;flex-direction:column}.grid{grid-template-columns:1fr}.controls{width:100%}}
-</style>
+
+/* V5.2 界面增强 */
+:root[data-theme="light"]{--bg:#f3f6fb;--card:rgba(255,255,255,.9);--line:rgba(15,23,42,.12);--text:#0f172a;--muted:#64748b;--shadow:0 18px 50px rgba(15,23,42,.1)}
+.action-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}.secondary-btn{padding:14px 12px;border:1px solid var(--line);border-radius:16px;color:var(--text);background:rgba(255,255,255,.07);font-weight:800;cursor:pointer}.secondary-btn:hover,.history-actions button:hover{border-color:var(--gold);transform:translateY(-1px)}.countdown{color:var(--gold);font-size:12px;font-weight:800;text-align:right}.history-actions{display:flex;gap:8px;margin:-4px 0 10px}.history-actions button{padding:7px 10px;border:1px solid var(--line);border-radius:10px;color:var(--muted);background:transparent;font-size:12px;cursor:pointer}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.feature-grid .panel{padding:22px}.feature-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.feature-title h2{margin:0;font-size:19px}.feature-title span{color:var(--muted);font-size:12px}.calc-copy{margin:12px 0 16px;color:var(--muted);font-size:13px;line-height:1.7}.calc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:13px}.calc-row input{width:120px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--text);background:rgba(255,255,255,.06);text-align:right;outline:0}.calc-results{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.calc-result{padding:13px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.04)}.calc-result small{display:block;color:var(--muted);font-size:11px}.calc-result strong{display:block;margin-top:7px;font-size:20px;font-variant-numeric:tabular-nums}.calc-note{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.6}.chart-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.range-actions{display:flex;gap:6px}.range-btn{padding:7px 10px;border:1px solid var(--line);border-radius:9px;color:var(--muted);background:transparent;font-size:12px;cursor:pointer}.range-btn.active{color:var(--gold);border-color:var(--gold);background:rgba(251,191,36,.1)}@media(max-width:900px){.feature-grid{grid-template-columns:1fr}.action-row{grid-template-columns:1fr 1fr 1fr}}@media(max-width:560px){.action-row{grid-template-columns:1fr 1fr}.action-row .primary-btn{grid-column:1/-1}.chart-heading{align-items:flex-start;flex-direction:column}.range-actions{width:100%}.range-btn{flex:1}}
+ .trend{display:inline-flex;margin-top:14px;color:var(--muted);font-size:12px;font-weight:900}.trend.up{color:var(--green)}.trend.down{color:var(--red)}.trend.flat{color:var(--muted)}.action-row{grid-template-columns:1fr auto auto auto}select#intervalSelect{color:var(--text)!important;background:var(--card)!important}@media(max-width:560px){.action-row{grid-template-columns:1fr 1fr}.action-row .primary-btn{grid-column:1/-1}}</style>
 </head>
 <body>
 <main class="container">
-<section class="hero"><div><div class="badge"><span class="dot"></span>本地服务版 V5.1 · 固定缓存目录</div><h1>黄金价格实时看板</h1><p class="desc">国际金价按 XAU/USD 与 USD/CNY 换算为人民币/克；中国金价取上海黄金交易所 Au99.99 延时报价。V4 修复了 Stooq CSV 无表头解析问题，并加入缓存与备用源。</p></div><div class="controls"><button id="refreshBtn">立即刷新</button><div style="display:grid;gap:10px;min-width:260px"><div class="status" id="statusBox">正在初始化...</div><div class="status" id="infoBox">数据来源：--；最后刷新：--</div></div><select id="intervalSelect" style="min-width:150px;border-radius:18px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#e2e8f0;font-size:13px"><option value="10" selected>自动刷新：10 秒</option><option value="30">自动刷新：30 秒</option><option value="60">自动刷新：60 秒</option></select></div></section>
+<section class="hero"><div><div class="badge"><span class="dot"></span>本地服务版 V5.2 · 固定缓存目录</div><h1>黄金价格实时看板</h1><p class="desc">国际金价按 XAU/USD 与 USD/CNY 换算为人民币/克；中国金价取上海黄金交易所 Au99.99 延时报价。V5.2 增加主题切换、持仓估值、刷新倒计时、历史导出与快捷操作。</p></div><div class="controls"><div class="action-row"><button class="primary-btn" id="refreshBtn">立即刷新</button><button class="secondary-btn" id="pauseBtn">暂停</button><button class="secondary-btn" id="themeBtn" title="切换浅色/深色主题">浅色</button><button class="secondary-btn" id="copyBtn">复制</button></div><div style="display:grid;gap:10px;min-width:260px"><div class="status" id="statusBox">正在初始化...</div><div class="status" id="infoBox">数据来源：--；最后刷新：--</div><div class="countdown" id="countdown">下一次刷新：--</div></div><select id="intervalSelect" style="min-width:150px;border-radius:18px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#e2e8f0;font-size:13px"><option value="10" selected>自动刷新：10 秒</option><option value="30">自动刷新：30 秒</option><option value="60">自动刷新：60 秒</option></select></div></section>
 <div class="errorbox" id="errorBox"></div>
-<section class="grid"><article class="card"><div class="label"><span>国际金价换算</span><span class="pill">XAU/USD × 汇率</span></div><div class="price" id="intlPrice">--<span class="unit">元/克</span></div><div class="sub" id="intlSub">等待数据中...</div></article><article class="card blue"><div class="label"><span>中国金价</span><span class="pill">SGE Au99.99</span></div><div class="price" id="chinaPrice">--<span class="unit">元/克</span></div><div class="sub" id="chinaSub">等待数据中...</div></article><article class="card green"><div class="label"><span>内外价差</span><span class="pill">中国 - 国际</span></div><div class="price" id="spreadPrice">--<span class="unit">元/克</span></div><div class="delta" id="spreadDelta">等待计算</div><div class="sub" id="spreadSub">价差为正，表示国内报价高于换算后的国际报价。</div></article></section>
-<section class="grid"><article class="card"><div class="label"><span>当前数据摘要</span><span class="pill">状态一览</span></div><div class="sub" id="statusDetail">等待首次刷新，或页面刷新后显示最新状态。</div></article><article class="card blue"><div class="label"><span>最近刷新历史</span><span class="pill">最多 6 条</span></div><div class="history-list" id="historyList">暂无刷新记录。</div></article><article class="card green"><div class="label"><span>接口来源</span><span class="pill">XAU / USD / SGE</span></div><div class="sub" id="detailSources">等待刷新后显示。</div></article></section>
-<section class="panel"><div><h2>刷新走势</h2><div class="chart-wrap"><canvas id="chart" width="900" height="320"></canvas><div id="chartTooltip" class="chart-tooltip"></div></div><table><thead><tr><th>项目</th><th>数值</th><th>来源/说明</th></tr></thead><tbody><tr><td>XAU/USD</td><td id="xauCell">--</td><td id="xauSource">--</td></tr><tr><td>USD/CNY</td><td id="fxCell">--</td><td id="fxSource">--</td></tr><tr><td>中国金价</td><td id="sgeCell">--</td><td id="sgeSource">--</td></tr><tr><td>换算公式</td><td colspan="2">国际金价人民币/克 = XAU/USD × USD/CNY ÷ 31.1034768</td></tr></tbody></table></div><aside><h2>状态说明</h2><div class="tips"><div class="tip"><strong>这版修了什么</strong>旧版把 Stooq 无表头 CSV 当成有表头 CSV 解析，所以 XAUUSD 会被解析乱。V4 已重写解析逻辑。</div><div class="tip"><strong>缓存机制</strong>成功获取一次后会保存 gold_cache.json。以后临时断网也能显示上一次价格，并标注缓存。</div><div class="tip"><strong>免费边界</strong>免费数据可能延迟、休市或偶发不可用，适合个人查看，不适合作为交易依据。</div></div></aside></section><div class="footer">页面仅供个人学习和查看，不构成投资建议。</div>
+<section class="grid"><article class="card"><div class="label"><span>国际金价换算</span><span class="pill">XAU/USD × 汇率</span></div><div class="price" id="intlPrice">--<span class="unit">元/克</span></div><div class="trend neutral" id="intlTrend">等待数据</div><div class="sub" id="intlSub">等待数据中...</div></article><article class="card blue"><div class="label"><span>中国金价</span><span class="pill">SGE Au99.99</span></div><div class="price" id="chinaPrice">--<span class="unit">元/克</span></div><div class="trend neutral" id="chinaTrend">等待数据</div><div class="sub" id="chinaSub">等待数据中...</div></article><article class="card green"><div class="label"><span>内外价差</span><span class="pill">中国 - 国际</span></div><div class="price" id="spreadPrice">--<span class="unit">元/克</span></div><div class="trend neutral" id="spreadTrend">等待数据</div><div class="delta" id="spreadDelta">等待计算</div><div class="sub" id="spreadSub">价差为正，表示国内报价高于换算后的国际报价。</div></article></section>
+<section class="grid"><article class="card"><div class="label"><span>当前数据摘要</span><span class="pill">状态一览</span></div><div class="sub" id="statusDetail">等待首次刷新，或页面刷新后显示最新状态。</div></article><article class="card blue"><div class="label"><span>最近刷新历史</span><span class="pill">最多 6 条</span></div><div class="history-actions"><button id="exportBtn">导出 CSV</button><button id="clearHistoryBtn">清空记录</button></div><div class="history-list" id="historyList">暂无刷新记录。</div></article><article class="card green"><div class="label"><span>接口来源</span><span class="pill">XAU / USD / SGE</span></div><div class="sub" id="detailSources">等待刷新后显示。</div></article></section>
+<section class="feature-grid"><article class="panel"><div class="feature-title"><h2>持仓估值</h2><span>按中国金价估算</span></div><div class="calc-copy">输入持有的黄金克数，快速查看当前国内报价和国际换算价对应的总价值。</div><div class="calc-row"><span>持有克重</span><label><input id="gramsInput" type="number" min="0" step="0.01" value="10" inputmode="decimal" aria-label="持有克重"> 克</label></div><div class="calc-results"><div class="calc-result"><small>国内估值</small><strong id="holdingValue">--</strong></div><div class="calc-result"><small>国际估值</small><strong id="intlHoldingValue">--</strong></div></div><div class="calc-note" id="calcNote">首次刷新后自动计算，估值仅供参考。</div></article><article class="panel"><div class="feature-title"><h2>使用快捷键</h2><span>提高查看效率</span></div><div class="calc-copy">在页面中按 <b>R</b> 可立即刷新，按 <b>T</b> 可切换主题。刷新历史支持导出 CSV，适合留存本次查看记录。</div><div class="state-row"><span>当前刷新记录</span><strong id="historyCount">0 条</strong></div><div class="state-row"><span>当前图表范围</span><strong id="rangeSummary">最近 20 次</strong></div><div class="calc-note">数据只保存在当前页面内，关闭页面后历史会清空。</div></article></section><section class="panel"><div><div class="chart-heading"><h2>刷新走势</h2><div class="range-actions"><button class="range-btn" data-range="10">10 次</button><button class="range-btn active" data-range="20">20 次</button><button class="range-btn" data-range="40">40 次</button></div></div><div class="chart-wrap"><canvas id="chart" width="900" height="320"></canvas><div id="chartTooltip" class="chart-tooltip"></div></div><table><thead><tr><th>项目</th><th>数值</th><th>来源/说明</th></tr></thead><tbody><tr><td>XAU/USD</td><td id="xauCell">--</td><td id="xauSource">--</td></tr><tr><td>USD/CNY</td><td id="fxCell">--</td><td id="fxSource">--</td></tr><tr><td>中国金价</td><td id="sgeCell">--</td><td id="sgeSource">--</td></tr><tr><td>换算公式</td><td colspan="2">国际金价人民币/克 = XAU/USD × USD/CNY ÷ 31.1034768</td></tr></tbody></table></div><aside><h2>状态说明</h2><div class="tips"><div class="tip"><strong>这版修了什么</strong>旧版把 Stooq 无表头 CSV 当成有表头 CSV 解析，所以 XAUUSD 会被解析乱。V4 已重写解析逻辑。</div><div class="tip"><strong>缓存机制</strong>成功获取一次后会保存 gold_cache.json。以后临时断网也能显示上一次价格，并标注缓存。</div><div class="tip"><strong>免费边界</strong>免费数据可能延迟、休市或偶发不可用，适合个人查看，不适合作为交易依据。</div></div></aside></section><div class="footer">页面仅供个人学习和查看，不构成投资建议。</div>
 </main>
 <script>
-const el=id=>document.getElementById(id);const historyData=[];let refreshHistory=[];let chartPoints=[];let loading=false;let refreshTimer=null;let refreshInterval=10000;function fmt(num,digits=2){const n=Number(num);if(!Number.isFinite(n))return"--";return n.toLocaleString("zh-CN",{minimumFractionDigits:digits,maximumFractionDigits:digits})}function nowText(){return new Date().toLocaleString("zh-CN",{hour12:false})}function formatRefreshText(){return `下一次自动刷新约 ${refreshInterval/1000} 秒后。`}function setStatus(text,ok=true){el("statusBox").innerHTML=ok?text:`<span style="color:#fecaca">${text}</span>`}function showError(text){const box=el("errorBox");if(!text){box.style.display="none";box.textContent="";return}box.style.display="block";box.textContent=text}function drawChart(){
-const canvas=el("chart"),ctx=canvas.getContext("2d");
-const w=canvas.width,h=canvas.height;
-const left=72,right=26,top=34,bottom=58;
-const plotW=w-left-right,plotH=h-top-bottom;
-chartPoints=[];
-ctx.clearRect(0,0,w,h);
-ctx.fillStyle="rgba(255,255,255,.03)";
-ctx.fillRect(0,0,w,h);
 
-// 坐标轴标题
-ctx.fillStyle="rgba(226,232,240,.72)";
-ctx.font="13px Microsoft YaHei, sans-serif";
-ctx.fillText("价格（元/克）",left,20);
-ctx.fillText("刷新时间",w-right-54,h-16);
+const el=id=>document.getElementById(id);
+const historyData=[];const refreshHistory=[];let chartPoints=[];let loading=false;let countdownTimer=null;let refreshInterval=10000;let remainingMs=10000;let chartRange=20;let lastData=null;let isPaused=false;
+function fmt(num,digits=2){const n=Number(num);if(!Number.isFinite(n))return"--";return n.toLocaleString("zh-CN",{minimumFractionDigits:digits,maximumFractionDigits:digits})}
+function nowText(){return new Date().toLocaleString("zh-CN",{hour12:false})}
+function escapeHtml(value){return String(value==null?"":value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+function safeGet(key,fallback){try{return localStorage.getItem(key)||fallback}catch(e){return fallback}}
+function safeSet(key,value){try{localStorage.setItem(key,value)}catch(e){}}
+function setStatus(text,ok=true,busy=false){const node=el("statusBox");node.className="status"+(ok?"":" is-error");node.textContent="";if(busy){const spinner=document.createElement("span");spinner.className="spinner";node.appendChild(spinner)}node.appendChild(document.createTextNode(text))}
+function showError(text){const box=el("errorBox");if(!text){box.style.display="none";box.textContent="";return}box.style.display="block";box.textContent=text}
+function setTheme(theme){document.documentElement.dataset.theme=theme;const btn=el("themeBtn");btn.textContent=theme==="light"?"深色":"浅色";safeSet("gold-theme",theme)}
+function setTrend(id,current,previous){const node=el(id);if(!node)return;if(!Number.isFinite(previous)){node.className="trend neutral";node.textContent="首次刷新";return}const diff=Number(current)-Number(previous);node.className="trend "+(diff>0?"up":diff<0?"down":"flat");node.textContent=(diff>0?"↑ +":diff<0?"↓ ":"→ ")+fmt(diff,Math.abs(diff)<1?2:1)}
+function updateHolding(){const grams=Math.max(0,Number(el("gramsInput")&&el("gramsInput").value)||0);const china=lastData?Number(lastData.china_au9999_cny_per_g):NaN;const intl=lastData?Number(lastData.international_cny_per_g):NaN;if(el("holdingValue"))el("holdingValue").textContent=Number.isFinite(china)?fmt(china*grams,2)+" 元":"--";if(el("intlHoldingValue"))el("intlHoldingValue").textContent=Number.isFinite(intl)?fmt(intl*grams,2)+" 元":"--";if(el("calcNote"))el("calcNote").textContent=lastData?"按 "+fmt(grams,2)+" 克计算；实际成交价可能包含工费、税费或回收折价。":"首次刷新后自动计算，估值仅供参考。"}
+function renderCountdown(){const node=el("countdown");if(!node)return;if(isPaused){node.textContent="自动刷新已暂停";return}if(loading){node.textContent="正在获取…";return}node.textContent="下一次刷新："+Math.max(1,Math.ceil(remainingMs/1000))+" 秒"}
+function resetCountdown(){remainingMs=refreshInterval;renderCountdown()}
+function scheduleRefresh(){if(countdownTimer)clearInterval(countdownTimer);remainingMs=refreshInterval;renderCountdown();countdownTimer=setInterval(()=>{if(!isPaused&&!loading){remainingMs-=1000;if(remainingMs<=0){remainingMs=refreshInterval;refresh()}}renderCountdown()},1000)}
+function drawChart(){const canvas=el("chart"),ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height,left=72,right=26,top=34,bottom=58,plotW=w-left-right,plotH=h-top-bottom;const visible=historyData.slice(-chartRange);chartPoints=[];ctx.clearRect(0,0,w,h);ctx.fillStyle="rgba(255,255,255,.03)";ctx.fillRect(0,0,w,h);ctx.fillStyle="rgba(148,163,184,.8)";ctx.font="13px Microsoft YaHei, sans-serif";ctx.textAlign="left";ctx.textBaseline="alphabetic";ctx.fillText("价格（元/克）",left,20);const values=visible.flatMap(p=>[p.intl,p.china]).filter(Number.isFinite);let min=values.length?Math.min(...values):0;let max=values.length?Math.max(...values):1;const pad=Math.max((max-min)*.14,1);min-=pad;max+=pad;const range=Math.max(max-min,1);const yMap=v=>top+plotH-((v-min)/range)*plotH;const xMap=i=>visible.length<=1?left+plotW/2:left+plotW*i/(visible.length-1);ctx.strokeStyle="rgba(148,163,184,.16)";ctx.lineWidth=1;ctx.textAlign="right";ctx.textBaseline="middle";for(let i=0;i<=5;i++){const value=min+range*i/5,y=yMap(value);ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();ctx.fillStyle="rgba(148,163,184,.8)";ctx.fillText(fmt(value,2),left-10,y)}ctx.strokeStyle="rgba(148,163,184,.45)";ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,h-bottom);ctx.lineTo(w-right,h-bottom);ctx.stroke();if(!visible.length){ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="rgba(148,163,184,.85)";ctx.font="16px Microsoft YaHei, sans-serif";ctx.fillText("刷新后显示价格走势",left+plotW/2,top+plotH/2);return}ctx.font="12px Microsoft YaHei, sans-serif";ctx.textBaseline="top";[0,Math.floor((visible.length-1)/2),visible.length-1].filter((v,i,a)=>a.indexOf(v)===i).forEach(i=>{const x=xMap(i),label=(visible[i].time||"").slice(-8);ctx.strokeStyle="rgba(148,163,184,.3)";ctx.beginPath();ctx.moveTo(x,h-bottom);ctx.lineTo(x,h-bottom+6);ctx.stroke();ctx.fillStyle="rgba(148,163,184,.75)";ctx.textAlign=i===0?"left":i===visible.length-1?"right":"center";ctx.fillText(label,x,h-bottom+12)});function line(key,color,name){ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();visible.forEach((p,i)=>{const x=xMap(i),y=yMap(p[key]);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();visible.forEach((p,i)=>{const x=xMap(i),y=yMap(p[key]);ctx.beginPath();ctx.arc(x,y,4.2,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle="rgba(15,23,42,.9)";ctx.stroke();chartPoints.push({x,y,time:p.time||("第 "+(i+1)+" 次"),name,value:p[key],color})})}line("intl","#fbbf24","国际换算价");line("china","#38bdf8","中国 Au99.99");ctx.textAlign="left";ctx.textBaseline="alphabetic";ctx.fillStyle="rgba(148,163,184,.8)";ctx.fillText("区间："+fmt(min,2)+" - "+fmt(max,2)+" 元/克",left,h-16);if(el("rangeSummary"))el("rangeSummary").textContent="最近 "+chartRange+" 次"}
+function renderHistory(){const container=el("historyList");if(!container)return;if(!refreshHistory.length){container.textContent="暂无刷新记录。";if(el("historyCount"))el("historyCount").textContent="0 条";return}container.innerHTML="<table><thead><tr><th>时间</th><th>国际</th><th>中国</th><th>价差</th></tr></thead><tbody>"+refreshHistory.map(item=>"<tr><td>"+escapeHtml(item.time)+"</td><td>"+escapeHtml(item.intl)+"</td><td>"+escapeHtml(item.china)+"</td><td>"+escapeHtml(item.spread)+"</td></tr>").join("")+"</tbody></table>";if(el("historyCount"))el("historyCount").textContent=refreshHistory.length+" 条"}
+function updateUI(d){showError("");const previous=historyData.length?historyData[historyData.length-1]:null;const intl=Number(d.international_cny_per_g),china=Number(d.china_au9999_cny_per_g),spread=Number(d.spread_cny_per_g);el("intlPrice").innerHTML=fmt(intl)+'<span class="unit">元/克</span>';el("chinaPrice").innerHTML=fmt(china)+'<span class="unit">元/克</span>';el("spreadPrice").innerHTML=fmt(spread)+'<span class="unit">元/克</span>';setTrend("intlTrend",intl,previous&&previous.intl);setTrend("chinaTrend",china,previous&&previous.china);setTrend("spreadTrend",spread,previous&&previous.spread);el("intlSub").textContent="XAU/USD "+fmt(d.xauusd,2)+"，USD/CNY "+fmt(d.usdcny,4)+"；行情时间："+(d.market_time||"--");el("chinaSub").textContent="最高 "+fmt(d.sge_high)+"，最低 "+fmt(d.sge_low)+"，开盘 "+fmt(d.sge_open)+"；刷新："+nowText();el("spreadSub").textContent="价差比例："+fmt(d.spread_pct,2)+"%。正数代表国内价更高，负数代表国内价更低。";const delta=el("spreadDelta");if(delta){delta.className="delta "+(spread>=0?"up":"down");delta.textContent=(spread>=0?"↑ ":"↓ ")+fmt(d.spread_pct,2)+"%"}el("xauCell").textContent=fmt(d.xauusd,2)+" 美元/盎司";el("fxCell").textContent=fmt(d.usdcny,4)+" 人民币/美元";el("sgeCell").textContent=fmt(china)+" 元/克";el("xauSource").textContent=d.xau_source||"--";el("fxSource").textContent=d.fx_source||"--";el("sgeSource").textContent=d.sge_source||"--";const time=nowText();historyData.push({time,intl,china,spread});if(historyData.length>40)historyData.shift();refreshHistory.unshift({time,intl:fmt(intl),china:fmt(china),spread:fmt(spread),source:d.from_cache?"缓存数据":(d.xau_source||"--")+" / "+(d.fx_source||"--")+" / "+(d.sge_source||"--")});if(refreshHistory.length>20)refreshHistory.pop();lastData=d;updateHolding();renderHistory();drawChart();const cached=!!d.from_cache;el("infoBox").textContent="数据来源："+(cached?"缓存数据":"实时数据")+"；最后刷新："+(d.updated_at||"--");el("detailSources").textContent="XAU/USD："+(d.xau_source||"--")+"；USD/CNY："+(d.fx_source||"--")+"；SGE："+(d.sge_source||"--");if(el("marketState"))el("marketState").textContent=cached?"缓存数据 · 实时源暂不可用":"实时数据 · 来源正常";if(el("statusDetail"))el("statusDetail").textContent="数据更新时间："+(d.updated_at||"--")+"；行情时间："+(d.market_time||"--")+"；"+(cached?"当前正在显示缓存数据。":"当前为实时数据。");if(el("dataBadge"))el("dataBadge").textContent=cached?"缓存数据":"实时数据";resetCountdown();if(cached)showError("当前显示缓存数据，原因："+(d.cache_reason||"实时接口暂时不可用。"));setStatus("已更新 "+time+(cached?" · 当前为缓存数据":" · 当前为实时数据"))}
+async function refresh(){if(loading)return;loading=true;el("refreshBtn").disabled=true;renderCountdown();setStatus("正在获取最新行情...",true,true);try{const res=await fetch("/api/gold?t="+Date.now(),{cache:"no-store"});const text=await res.text();let data;try{data=JSON.parse(text)}catch(e){throw new Error("接口返回不是 JSON："+text.slice(0,240))}if(!res.ok||!data.ok){const msg=data.error||"本地接口返回异常";showError("接口错误：\n"+msg+"\n\n请查看 gold_debug.log 最后几行。");throw new Error(msg)}updateUI(data)}catch(err){setStatus("刷新失败："+(err.message||err),false);resetCountdown()}finally{loading=false;el("refreshBtn").disabled=false;renderCountdown()}}
+function togglePause(){isPaused=!isPaused;const btn=el("pauseBtn");if(btn){btn.textContent=isPaused?"继续自动刷新":"暂停自动刷新";btn.classList.toggle("is-paused",isPaused)}setStatus(isPaused?"自动刷新已暂停，可手动点击立即刷新。":"自动刷新已恢复。");renderCountdown()}
+function onIntervalChange(){refreshInterval=Number(el("intervalSelect").value)*1000;safeSet("gold-interval",String(refreshInterval/1000));scheduleRefresh();setStatus("刷新间隔已切换为 "+refreshInterval/1000+" 秒。")}
+function exportHistory(){if(!refreshHistory.length){setStatus("暂无刷新记录可导出。",false);return}const rows=[["时间","国际换算价","中国金价","内外价差"],...refreshHistory.slice().reverse().map(x=>[x.time,x.intl,x.china,x.spread])];const csv="\uFEFF"+rows.map(row=>row.map(cell=>"\""+String(cell).replace(/"/g,"\"\"")+"\"").join(",")).join("\r\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="gold-history-"+new Date().toISOString().slice(0,10)+".csv";a.click();URL.revokeObjectURL(url);setStatus("刷新历史已导出为 CSV。")}
+function clearHistory(){historyData.splice(0);refreshHistory.splice(0);drawChart();renderHistory();setStatus("刷新历史已清空。")}
+async function copySummary(){if(!lastData){setStatus("请先刷新一次行情。",false);return}const text="黄金行情摘要（"+nowText()+"）\n国际换算价："+fmt(lastData.international_cny_per_g)+" 元/克\n中国 Au99.99："+fmt(lastData.china_au9999_cny_per_g)+" 元/克\n内外价差："+fmt(lastData.spread_cny_per_g)+" 元/克（"+fmt(lastData.spread_pct,2)+"%）\n数据："+(lastData.from_cache?"缓存数据":"实时数据");try{await navigator.clipboard.writeText(text);setStatus("行情摘要已复制到剪贴板。")}catch(e){const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();setStatus("行情摘要已复制到剪贴板。")}}
+function setupChartHover(){const canvas=el("chart"),tooltip=el("chartTooltip");canvas.addEventListener("mousemove",ev=>{if(!chartPoints.length){tooltip.style.display="none";return}const rect=canvas.getBoundingClientRect(),sx=canvas.width/rect.width,sy=canvas.height/rect.height,mx=(ev.clientX-rect.left)*sx,my=(ev.clientY-rect.top)*sy;let nearest=null,best=Infinity;chartPoints.forEach(p=>{const dist=Math.hypot(mx-p.x,my-p.y);if(dist<best){best=dist;nearest=p}});if(!nearest||best>15){tooltip.style.display="none";return}tooltip.innerHTML="<b>"+escapeHtml(nearest.time)+"</b><br><span style=\"color:"+nearest.color+"\">"+escapeHtml(nearest.name)+"</span>："+fmt(nearest.value,2)+" 元/克";tooltip.style.display="block";let left=ev.clientX-rect.left+14,top=ev.clientY-rect.top+14;if(left>rect.width-220)left=Math.max(8,ev.clientX-rect.left-220);if(top>rect.height-78)top=Math.max(8,ev.clientY-rect.top-78);tooltip.style.left=left+"px";tooltip.style.top=top+"px"});canvas.addEventListener("mouseleave",()=>{tooltip.style.display="none"})}
+el("refreshBtn").addEventListener("click",refresh);el("themeBtn").addEventListener("click",()=>setTheme(document.documentElement.dataset.theme==="light"?"dark":"light"));if(el("pauseBtn"))el("pauseBtn").addEventListener("click",togglePause);el("intervalSelect").addEventListener("change",onIntervalChange);el("gramsInput").addEventListener("input",updateHolding);el("exportBtn").addEventListener("click",exportHistory);el("clearHistoryBtn").addEventListener("click",clearHistory);el("copyBtn").addEventListener("click",copySummary);document.querySelectorAll(".range-btn").forEach(btn=>btn.addEventListener("click",()=>{chartRange=Number(btn.dataset.range);document.querySelectorAll(".range-btn").forEach(item=>item.classList.toggle("active",item===btn));drawChart()}));document.addEventListener("keydown",ev=>{if(ev.target.matches("input,select,textarea"))return;if(ev.key.toLowerCase()==="r")refresh();if(ev.key.toLowerCase()==="t")setTheme(document.documentElement.dataset.theme==="light"?"dark":"light")});setTheme(safeGet("gold-theme","dark"));const savedInterval=Number(safeGet("gold-interval","10"));if([10,30,60].includes(savedInterval)){refreshInterval=savedInterval*1000;el("intervalSelect").value=String(savedInterval)}setupChartHover();scheduleRefresh();refresh();window.addEventListener("resize",drawChart);
 
-// 数据不足时也画出坐标轴
-let values=historyData.flatMap(p=>[p.intl,p.china]).filter(Number.isFinite);
-let min=values.length?Math.min(...values):0;
-let max=values.length?Math.max(...values):1;
-let padValue=Math.max((max-min)*0.12,1);
-min-=padValue;
-max+=padValue;
-let range=Math.max(max-min,1);
-
-function yMap(v){return top+plotH-((v-min)/range)*plotH}
-function xMap(i){return historyData.length<=1?left+plotW/2:left+plotW*i/(historyData.length-1)}
-
-// 网格线 + Y轴刻度
-ctx.strokeStyle="rgba(255,255,255,.10)";
-ctx.lineWidth=1;
-ctx.textAlign="right";
-ctx.textBaseline="middle";
-for(let i=0;i<=5;i++){
-  const value=min+(range*i/5);
-  const y=yMap(value);
-  ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();
-  ctx.fillStyle="rgba(226,232,240,.65)";
-  ctx.fillText(fmt(value,2),left-10,y);
-}
-
-// X/Y 坐标轴
-ctx.strokeStyle="rgba(226,232,240,.48)";
-ctx.lineWidth=1.4;
-ctx.beginPath();
-ctx.moveTo(left,top);
-ctx.lineTo(left,h-bottom);
-ctx.lineTo(w-right,h-bottom);
-ctx.stroke();
-
-if(historyData.length<2){
-  ctx.textAlign="center";
-  ctx.textBaseline="middle";
-  ctx.fillStyle="rgba(255,255,255,.55)";
-  ctx.font="16px Microsoft YaHei, sans-serif";
-  ctx.fillText("刷新两次后显示走势线",left+plotW/2,top+plotH/2);
-  return;
-}
-
-// X轴刻度：首、中、尾
-ctx.font="12px Microsoft YaHei, sans-serif";
-ctx.textBaseline="top";
-const xTickIndexes=[0,Math.floor((historyData.length-1)/2),historyData.length-1];
-[...new Set(xTickIndexes)].forEach(i=>{
-  const x=xMap(i);
-  const label=historyData[i].time||`第 ${i+1} 次`;
-  ctx.strokeStyle="rgba(226,232,240,.28)";
-  ctx.beginPath();ctx.moveTo(x,h-bottom);ctx.lineTo(x,h-bottom+6);ctx.stroke();
-  ctx.fillStyle="rgba(226,232,240,.62)";
-  ctx.textAlign=i===0?"left":(i===historyData.length-1?"right":"center");
-  ctx.fillText(label,x,h-bottom+12);
-});
-
-function line(key,color,name){
-  ctx.strokeStyle=color;
-  ctx.lineWidth=3;
-  ctx.beginPath();
-  historyData.forEach((p,i)=>{
-    const x=xMap(i),y=yMap(p[key]);
-    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-  });
-  ctx.stroke();
-
-  historyData.forEach((p,i)=>{
-    const x=xMap(i),y=yMap(p[key]);
-    ctx.beginPath();
-    ctx.arc(x,y,4.2,0,Math.PI*2);
-    ctx.fillStyle=color;
-    ctx.fill();
-    ctx.lineWidth=2;
-    ctx.strokeStyle="rgba(15,23,42,.92)";
-    ctx.stroke();
-    chartPoints.push({x,y,time:p.time||`第 ${i+1} 次`,name,value:p[key],color});
-  });
-}
-
-line("intl","#fbbf24","国际换算价");
-line("china","#38bdf8","中国 Au99.99");
-
-// 图例
-ctx.textAlign="left";
-ctx.textBaseline="middle";
-ctx.font="13px Microsoft YaHei, sans-serif";
-ctx.fillStyle="#fbbf24";ctx.fillRect(left,16,12,12);
-ctx.fillStyle="#e2e8f0";ctx.fillText("国际换算价",left+18,22);
-ctx.fillStyle="#38bdf8";ctx.fillRect(left+126,16,12,12);
-ctx.fillStyle="#e2e8f0";ctx.fillText("中国 Au99.99",left+144,22);
-ctx.fillStyle="rgba(255,255,255,.55)";
-ctx.textAlign="left";
-ctx.fillText(`区间：${fmt(min,2)} - ${fmt(max,2)} 元/克`,left,h-16);
-}function updateUI(d){showError("");el("intlPrice").innerHTML=`${fmt(d.international_cny_per_g)}<span class="unit">元/克</span>`;el("chinaPrice").innerHTML=`${fmt(d.china_au9999_cny_per_g)}<span class="unit">元/克</span>`;el("spreadPrice").innerHTML=`${fmt(d.spread_cny_per_g)}<span class="unit">元/克</span>`;el("intlSub").textContent=`XAU/USD ${fmt(d.xauusd,2)}，USD/CNY ${fmt(d.usdcny,4)}；行情时间：${d.market_time||"--"}`;el("chinaSub").textContent=`最高 ${fmt(d.sge_high)}，最低 ${fmt(d.sge_low)}，开盘 ${fmt(d.sge_open)}；刷新时间：${nowText()}`;el("spreadSub").textContent=`价差比例：${fmt(d.spread_pct,2)}%。正数代表国内价更高，负数代表国内价更低。`;const delta=el("spreadDelta");delta.className=`delta ${Number(d.spread_cny_per_g)>=0?"up":"down"}`;delta.textContent=`${Number(d.spread_cny_per_g)>=0?"↑":"↓"} ${fmt(d.spread_pct,2)}%`;el("xauCell").textContent=`${fmt(d.xauusd,2)} 美元/盎司`;el("fxCell").textContent=`${fmt(d.usdcny,4)} 人民币/美元`;el("sgeCell").textContent=`${fmt(d.china_au9999_cny_per_g)} 元/克`;el("xauSource").textContent=d.xau_source||"--";el("fxSource").textContent=d.fx_source||"--";el("sgeSource").textContent=d.sge_source||"--";historyData.push({time:nowText(),intl:Number(d.international_cny_per_g),china:Number(d.china_au9999_cny_per_g)});if(historyData.length>40)historyData.shift();refreshHistory.unshift({time:nowText(),intl:fmt(d.international_cny_per_g),china:fmt(d.china_au9999_cny_per_g),source:d.from_cache?"缓存数据":`${d.xau_source||"--"} / ${d.fx_source||"--"} / ${d.sge_source||"--"}`});if(refreshHistory.length>6)refreshHistory.pop();drawChart();const cache=d.from_cache?"（缓存）":"";el("infoBox").textContent=`数据来源：${d.from_cache?"缓存数据":"实时数据"}；最后刷新：${d.updated_at||"--"}`+(d.cache_reason?`；缓存原因：${d.cache_reason}`:" ");el("detailSources").textContent=`XAU/USD：${d.xau_source||"--"}；USD/CNY：${d.fx_source||"--"}；SGE：${d.sge_source||"--"}`;let statusText=`数据更新时间：${d.updated_at||"--"}；行情时间：${d.market_time||"--"}；${d.from_cache?"当前正在显示缓存数据。":"当前为实时数据。"}`;if(!d.from_cache&&d.market_time){const marketTs=Date.parse(d.market_time.replace(/-/g,"/"));if(!Number.isNaN(marketTs)&&Date.now()-marketTs>24*3600*1000){statusText+=` 注意：行情时间已超过 24 小时，数据可能未及时更新。`;}}if(d.from_cache&&d.cache_age_seconds!=null){statusText+=` 缓存已保存：${d.cache_saved_at||"--"}，${Math.floor(d.cache_age_seconds/60)} 分钟之前。`}el("statusDetail").textContent=statusText;renderHistory();if(d.from_cache&&d.cache_reason){showError("当前显示缓存数据，原因：\n"+d.cache_reason)}else if(d.from_cache){showError("当前显示缓存数据，实时接口暂时不可用。" )}else{showError("")}setStatus(`已更新${cache}：${nowText()}，${formatRefreshText()}`)}function renderHistory(){const container=el("historyList");if(!refreshHistory.length){container.innerHTML="暂无刷新记录。";return}container.innerHTML=`<table><thead><tr><th>时间</th><th>国际</th><th>中国</th><th>来源</th></tr></thead><tbody>${refreshHistory.map(item=>`<tr><td>${item.time}</td><td>${item.intl}</td><td>${item.china}</td><td>${item.source}</td></tr>`).join("")}</tbody></table>`;}function scheduleRefresh(){if(refreshTimer)clearInterval(refreshTimer);refreshTimer=setInterval(refresh,refreshInterval)}function onIntervalChange(){refreshInterval=Number(el("intervalSelect").value)*1000;scheduleRefresh();setStatus(`刷新间隔已切换为 ${refreshInterval/1000} 秒。`)}async function refresh(){if(loading)return;loading=true;el("refreshBtn").disabled=true;setStatus(`<span class="dot"></span>正在获取最新行情...`);try{const res=await fetch("/api/gold?t="+Date.now(),{cache:"no-store"});const text=await res.text();let data;try{data=JSON.parse(text)}catch(e){throw new Error("接口返回不是 JSON："+text.slice(0,300))}if(!res.ok||!data.ok){const msg=data.error||"本地接口返回异常";showError("接口错误：\n"+msg+"\n\n看运行目录下 gold_debug.log 最后 20 行。");throw new Error(msg)}updateUI(data)}catch(err){setStatus("刷新失败："+(err.message||err),false)}finally{loading=false;el("refreshBtn").disabled=false}}function setupChartHover(){
-const canvas=el("chart");
-const tooltip=el("chartTooltip");
-canvas.addEventListener("mousemove",ev=>{
-  if(!chartPoints.length){tooltip.style.display="none";return}
-  const rect=canvas.getBoundingClientRect();
-  const sx=canvas.width/rect.width;
-  const sy=canvas.height/rect.height;
-  const mx=(ev.clientX-rect.left)*sx;
-  const my=(ev.clientY-rect.top)*sy;
-  let nearest=null;
-  let best=999999;
-  chartPoints.forEach(p=>{
-    const dist=Math.hypot(mx-p.x,my-p.y);
-    if(dist<best){best=dist;nearest=p}
-  });
-  if(!nearest||best>14){
-    tooltip.style.display="none";
-    return;
-  }
-  tooltip.innerHTML=`<b>${nearest.time}</b><br><span style="color:${nearest.color}">${nearest.name}</span>：${fmt(nearest.value,2)} 元/克`;
-  tooltip.style.display="block";
-  let left=ev.clientX-rect.left+14;
-  let top=ev.clientY-rect.top+14;
-  const maxLeft=rect.width-220;
-  const maxTop=rect.height-78;
-  if(left>maxLeft)left=Math.max(8,ev.clientX-rect.left-220);
-  if(top>maxTop)top=Math.max(8,ev.clientY-rect.top-78);
-  tooltip.style.left=left+"px";
-  tooltip.style.top=top+"px";
-});
-canvas.addEventListener("mouseleave",()=>{tooltip.style.display="none"});
-}el("refreshBtn").addEventListener("click",refresh);el("intervalSelect").addEventListener("change",onIntervalChange);setupChartHover();window.addEventListener("resize",drawChart);refresh();scheduleRefresh();
 </script>
 </body></html>'''
 
@@ -817,7 +707,7 @@ def main():
     server = ThreadingHTTPServer((HOST, PORT), GoldHandler)
     url = f"http://{HOST}:{PORT}"
     print("=" * 64)
-    print("黄金价格实时看板 V5.1 已启动")
+    print("黄金价格实时看板 V5.2 已启动")
     print("浏览器地址：", url)
     print("停止运行：在此窗口按 Ctrl + C")
     print("如果仍失败，把 gold_debug.log 最后 20 行发给我")
