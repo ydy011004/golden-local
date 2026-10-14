@@ -8,3 +8,6 @@ _server_stdout.log
 _server_stderr.log
 # 本地备份
 *.bak
+
+# 虚拟环境
+.venv/
